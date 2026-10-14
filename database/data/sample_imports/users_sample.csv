@@ -1,0 +1,6 @@
+name,email,role,password,phone,bio
+Samantha Reed,samantha.reed@example.com,student,StudentPass123!,+1-555-0199,Undergraduate researcher in data structures and graph algorithms
+Ethan Hunt,ethan.hunt@example.com,student,StudentPass123!,+1-555-0144,Cybersecurity enthusiast learning defensive backend architecture
+Dr. Elena Rostova,elena.rostova@example.com,instructor,InstructorPass123!,+1-555-0188,Associate Professor of Distributed Systems and Database Concurrency
+Michael Chang,michael.chang@example.com,student,StudentPass123!,+1-555-0133,Software engineer looking to level up on PostgreSQL 18
+Clara Oswald,clara.oswald@example.com,student,StudentPass123!,+1-555-0177,Aspiring cloud-native software developer

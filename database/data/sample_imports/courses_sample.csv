@@ -1,0 +1,4 @@
+title,category,instructor_email,level,price,summary,description,is_published
+Zero Trust Architecture with OpenSSL and TLS 1.3,Cybersecurity,ford@lms.local,advanced,99.00,Comprehensive guide to deploying mutual TLS and zero-trust perimeter defenses,In this hands-on course you will design and implement defense-in-depth security architectures using state of the art PKI cryptographic standards.,1
+Distributed Systems with Go and Raft,Cloud & DevOps,instructor@lms.local,advanced,89.50,Build fault-tolerant consensus mechanisms from scratch,Understand the Raft consensus algorithm leader election and distributed state machine replication.,1
+Foundations of Relational Schema Design,Database Engineering,ford@lms.local,beginner,0.00,Normalize database schemas from 1NF to BCNF,Learn how to avoid data anomalies and establish proper foreign key relationships for high integrity.,1

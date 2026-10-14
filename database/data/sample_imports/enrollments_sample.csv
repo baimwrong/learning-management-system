@@ -1,0 +1,4 @@
+student_email,course,status
+alice@lms.local,mastering-postgresql-18-architecture-and-tuning,active
+david@lms.local,enterprise-application-development-with-laravel-13,active
+student@lms.local,modern-responsive-ui-with-bootstrap-5,active
