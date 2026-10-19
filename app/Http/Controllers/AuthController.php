@@ -92,10 +92,14 @@ class AuthController extends Controller
      */
     public function quickLogin(string $role)
     {
-        $user = User::where('role', $role)->first();
+        if (!app()->environment('local', 'testing')) {
+            abort(403, 'Quick login switcher is restricted to local development mode.');
+        }
+
+        $user = User::where('role', $role)->where('status', 'active')->first();
 
         if (!$user) {
-            return redirect()->route('login')->with('error', "No user found with role: {$role}. Please run database seeders.");
+            return redirect()->route('login')->with('error', "No active user found with role: {$role}. Please run database seeders.");
         }
 
         Auth::login($user);

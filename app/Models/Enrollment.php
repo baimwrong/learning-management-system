@@ -48,11 +48,11 @@ class Enrollment extends Model
         $totalLessons = $course->lessons()->count();
 
         if ($totalLessons === 0) {
-            $this->progress_percentage = 100.00;
-            $this->status = 'completed';
-            $this->completed_at = now();
+            $this->progress_percentage = 0.00;
+            $this->status = 'active';
+            $this->completed_at = null;
             $this->save();
-            return 100.00;
+            return 0.00;
         }
 
         $completedCount = LessonCompletion::where('user_id', $this->user_id)
@@ -84,6 +84,9 @@ class Enrollment extends Model
                     ],
                 ]
             );
+        } else {
+            $this->status = 'active';
+            $this->completed_at = null;
         }
 
         $this->save();

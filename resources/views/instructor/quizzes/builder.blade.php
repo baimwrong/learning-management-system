@@ -118,6 +118,10 @@
                         <div class="list-group-item p-4">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <span class="badge bg-primary me-2">Q{{ $index + 1 }} • {{ $q->points }} pt{{ $q->points > 1 ? 's' : '' }}</span>
+                            <div class="d-flex align-items-center gap-1">
+                                <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#editQuestionModal{{ $q->id }}" title="Edit Question">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                                 <form action="{{ route('instructor.questions.destroy', $q) }}" method="POST" onsubmit="return confirm('Remove question?')">
                                     @csrf
                                     @method('DELETE')
@@ -126,6 +130,77 @@
                                     </button>
                                 </form>
                             </div>
+
+                            <!-- Edit Question Modal -->
+                            <div class="modal fade" id="editQuestionModal{{ $q->id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content border-0 shadow">
+                                        <form action="{{ route('instructor.questions.update', $q) }}" method="POST">
+                                            @csrf
+                                            @method('PUT')
+                                            <div class="modal-header">
+                                                <h5 class="modal-title fw-bold">Edit Question Q{{ $index + 1 }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body p-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-semibold">Question Prompt</label>
+                                                    <textarea name="question_text" class="form-control" rows="3" required>{{ $q->question_text }}</textarea>
+                                                </div>
+
+                                                <div class="row g-2 mb-3">
+                                                    <div class="col-4">
+                                                        <label class="form-label small fw-semibold">Type</label>
+                                                        <select name="question_type" class="form-select form-select-sm" required>
+                                                            <option value="single_choice" {{ $q->question_type === 'single_choice' ? 'selected' : '' }}>Single Choice</option>
+                                                            <option value="true_false" {{ $q->question_type === 'true_false' ? 'selected' : '' }}>True / False</option>
+                                                            <option value="multiple_choice" {{ $q->question_type === 'multiple_choice' ? 'selected' : '' }}>Multiple Select</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <label class="form-label small fw-semibold">Points</label>
+                                                        <input type="number" name="points" class="form-control form-control-sm" value="{{ $q->points }}" min="1" required>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <label class="form-label small fw-semibold">Order Number</label>
+                                                        <input type="number" name="order_number" class="form-control form-control-sm" value="{{ $q->order_number }}" min="1">
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-semibold mb-1">Answer Options</label>
+                                                    @php
+                                                        $optKeys = ['A', 'B', 'C', 'D'];
+                                                        $optsMap = collect($q->options ?? [])->keyBy('key');
+                                                    @endphp
+                                                    @foreach($optKeys as $letter)
+                                                        <div class="mb-2 input-group input-group-sm">
+                                                            <span class="input-group-text">{{ $letter }}</span>
+                                                            <input type="text" name="options[]" class="form-control" value="{{ $optsMap[$letter]['text'] ?? '' }}" placeholder="Option {{ $letter }}">
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-semibold">Correct Answer Key</label>
+                                                    <input type="text" name="correct_answers" class="form-control form-control-sm" value="{{ is_array($q->correct_answers) ? implode(',', $q->correct_answers) : $q->correct_answers }}" required placeholder="e.g. A or A,C">
+                                                    <small class="text-muted" style="font-size: 0.72rem;">Enter key letter matching the correct option.</small>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-semibold">Explanation</label>
+                                                    <textarea name="explanation" class="form-control form-control-sm" rows="2">{{ $q->explanation }}</textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                             <h6 class="fw-bold text-dark mb-3">{{ $q->question_text }}</h6>
 

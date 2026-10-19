@@ -58,6 +58,10 @@ class StudentController extends Controller
     {
         $user = Auth::user();
 
+        if (!$course->is_published && !$user->isAdmin()) {
+            return back()->with('error', 'This course is currently in draft mode and not accepting enrollments.');
+        }
+
         $existing = Enrollment::where('user_id', $user->id)
             ->where('course_id', $course->id)
             ->first();
@@ -166,6 +170,12 @@ class StudentController extends Controller
         $user = Auth::user();
         $course = $lesson->module->course;
 
+        // Verify enrollment or instructor/admin authorization
+        $isEnrolled = Enrollment::where('user_id', $user->id)->where('course_id', $course->id)->exists();
+        if (!$isEnrolled && !$user->isAdmin() && $course->instructor_id !== $user->id) {
+            return back()->with('error', 'You must be enrolled in this course to track lesson completion.');
+        }
+
         $completion = LessonCompletion::where('user_id', $user->id)
             ->where('lesson_id', $lesson->id)
             ->first();
@@ -205,10 +215,28 @@ class StudentController extends Controller
         $quiz->load(['questions', 'course']);
         $user = Auth::user();
 
+        if (!$quiz->is_active) {
+            return back()->with('error', 'This assessment is currently inactive.');
+        }
+
+        // Verify student is enrolled or course author/admin
+        $isEnrolled = Enrollment::where('user_id', $user->id)->where('course_id', $quiz->course_id)->exists();
+        if (!$isEnrolled && !$user->isAdmin() && $quiz->course->instructor_id !== $user->id) {
+            return redirect()->route('courses.detail', $quiz->course->slug)
+                ->with('warning', 'Please enroll in the course to take this assessment.');
+        }
+
         // Check existing attempts
         $attemptsCount = QuizAttempt::where('user_id', $user->id)->where('quiz_id', $quiz->id)->count();
         if ($quiz->max_attempts > 0 && $attemptsCount >= $quiz->max_attempts) {
             return back()->with('error', 'You have reached the maximum allowed attempts for this quiz.');
+        }
+
+        // Record start time in session
+        session(["quiz_start_{$quiz->id}_{$user->id}" => now()]);
+
+        if ($quiz->randomize_questions) {
+            $quiz->setRelation('questions', $quiz->questions->shuffle());
         }
 
         return view('student.quizzes.take', compact('quiz', 'attemptsCount'));
@@ -220,8 +248,25 @@ class StudentController extends Controller
     public function submitQuiz(Request $request, Quiz $quiz)
     {
         $user = Auth::user();
-        $answers = $request->input('answers', []);
 
+        if (!$quiz->is_active) {
+            return back()->with('error', 'This assessment is currently inactive.');
+        }
+
+        // Verify enrollment or instructor/admin authorization
+        $isEnrolled = Enrollment::where('user_id', $user->id)->where('course_id', $quiz->course_id)->exists();
+        if (!$isEnrolled && !$user->isAdmin() && $quiz->course->instructor_id !== $user->id) {
+            abort(403, 'You must be enrolled in this course to submit assessments.');
+        }
+
+        // Check attempt limit
+        $attemptsCount = QuizAttempt::where('user_id', $user->id)->where('quiz_id', $quiz->id)->count();
+        if ($quiz->max_attempts > 0 && $attemptsCount >= $quiz->max_attempts) {
+            return redirect()->route('student.learn', $quiz->course->slug)
+                ->with('error', 'You have reached the maximum allowed attempts for this quiz.');
+        }
+
+        $answers = $request->input('answers', []);
         $questions = $quiz->questions;
         $totalPoints = 0;
         $earnedPoints = 0;
@@ -258,6 +303,10 @@ class StudentController extends Controller
         $scorePercentage = $totalPoints > 0 ? round(($earnedPoints / $totalPoints) * 100, 2) : 0;
         $isPassed = ($scorePercentage >= $quiz->passing_score_percentage);
 
+        // Fetch started_at from session or fallback
+        $fallbackMinutes = min(15, $quiz->time_limit_minutes ?: 15);
+        $startedAt = session()->pull("quiz_start_{$quiz->id}_{$user->id}", now()->subMinutes($fallbackMinutes));
+
         $attempt = QuizAttempt::create([
             'quiz_id' => $quiz->id,
             'user_id' => $user->id,
@@ -266,7 +315,7 @@ class StudentController extends Controller
             'total_points' => $totalPoints,
             'is_passed' => $isPassed,
             'answers_submitted' => $submissionDetails,
-            'started_at' => now()->subMinutes(10),
+            'started_at' => $startedAt,
             'completed_at' => now(),
         ]);
 
@@ -312,7 +361,13 @@ class StudentController extends Controller
             'parent_id' => 'nullable|exists:discussions,id',
         ]);
 
-        $isInstructor = (Auth::id() === $lesson->module->course->instructor_id || Auth::user()->isAdmin());
+        $course = $lesson->module->course;
+        $isInstructor = (Auth::id() === $course->instructor_id || Auth::user()->isAdmin());
+        $isEnrolled = Enrollment::where('user_id', Auth::id())->where('course_id', $course->id)->exists();
+
+        if (!$isInstructor && !$isEnrolled) {
+            return back()->with('error', 'You must be enrolled in this course to join discussions.');
+        }
 
         Discussion::create([
             'lesson_id' => $lesson->id,
@@ -330,6 +385,14 @@ class StudentController extends Controller
      */
     public function submitReview(Request $request, Course $course)
     {
+        $user = Auth::user();
+
+        // Ensure user is enrolled or administrator
+        $isEnrolled = Enrollment::where('user_id', $user->id)->where('course_id', $course->id)->exists();
+        if (!$isEnrolled && !$user->isAdmin()) {
+            return back()->with('error', 'Only enrolled learners may submit course reviews.');
+        }
+
         $validated = $request->validate([
             'rating' => 'required|integer|min:1|max:5',
             'review' => 'nullable|string|max:1000',
@@ -338,7 +401,7 @@ class StudentController extends Controller
         CourseReview::updateOrCreate(
             [
                 'course_id' => $course->id,
-                'user_id' => Auth::id(),
+                'user_id' => $user->id,
             ],
             [
                 'rating' => $validated['rating'],

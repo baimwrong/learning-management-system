@@ -22,6 +22,13 @@ class EnsureUserHasRole
 
         $user = auth()->user();
 
+        if ($user->status !== 'active') {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return redirect()->route('login')->with('error', 'Your account is suspended. Please contact the administrator.');
+        }
+
         if (!in_array($user->role, $roles, true)) {
             abort(403, 'Unauthorized. Your account does not have access to this resource.');
         }

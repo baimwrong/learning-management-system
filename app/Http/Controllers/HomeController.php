@@ -8,6 +8,7 @@ use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
@@ -50,10 +51,11 @@ class HomeController extends Controller
         // Search by keyword
         if ($request->filled('q')) {
             $keyword = '%' . $request->q . '%';
-            $query->where(function ($q) use ($keyword) {
-                $q->where('title', 'ilike', $keyword)
-                    ->orWhere('summary', 'ilike', $keyword)
-                    ->orWhere('description', 'ilike', $keyword);
+            $likeOp = (DB::connection()->getDriverName() === 'pgsql') ? 'ilike' : 'like';
+            $query->where(function ($q) use ($keyword, $likeOp) {
+                $q->where('title', $likeOp, $keyword)
+                    ->orWhere('summary', $likeOp, $keyword)
+                    ->orWhere('description', $likeOp, $keyword);
             });
         }
 

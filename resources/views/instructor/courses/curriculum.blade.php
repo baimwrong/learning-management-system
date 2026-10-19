@@ -40,6 +40,9 @@
                     <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#addLessonModal{{ $module->id }}">
                         <i class="bi bi-plus-circle me-1"></i> Add Lesson
                     </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModuleModal{{ $module->id }}" title="Edit Module">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <form action="{{ route('instructor.modules.destroy', $module) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this module and all its lessons?')">
                         @csrf
                         @method('DELETE')
@@ -73,7 +76,7 @@
                                 </div>
                             </div>
 
-                            <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-light text-muted border">{{ $lesson->duration_minutes }} mins</span>
 
                                 @if($lesson->content_type === 'quiz' && $lesson->quiz)
@@ -81,6 +84,10 @@
                                         <i class="bi bi-pencil-square me-1"></i> Edit Quiz ({{ $lesson->quiz->questions()->count() }} Questions)
                                     </a>
                                 @endif
+
+                                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editLessonModal{{ $lesson->id }}" title="Edit Lesson">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
 
                                 <form action="{{ route('instructor.lessons.destroy', $lesson) }}" method="POST" class="d-inline" onsubmit="return confirm('Remove lesson?')">
                                     @csrf
@@ -155,6 +162,103 @@
                 </div>
             </div>
         </div>
+
+        <!-- Edit Module Modal -->
+        <div class="modal fade" id="editModuleModal{{ $module->id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content border-0 shadow">
+                    <form action="{{ route('instructor.modules.update', $module) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-bold">Edit Module</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Module Title</label>
+                                <input type="text" name="title" class="form-control" value="{{ $module->title }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Short Description</label>
+                                <textarea name="description" class="form-control" rows="3">{{ $module->description }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Order Number</label>
+                                <input type="number" name="order_number" class="form-control" value="{{ $module->order_number }}" min="1">
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Lesson Modals -->
+        @foreach($module->lessons as $lesson)
+            <div class="modal fade" id="editLessonModal{{ $lesson->id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content border-0 shadow">
+                        <form action="{{ route('instructor.lessons.update', $lesson) }}" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <div class="modal-header">
+                                <h5 class="modal-title fw-bold">Edit Lesson: {{ $lesson->title }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body p-4">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Lesson Title</label>
+                                    <input type="text" name="title" class="form-control" value="{{ $lesson->title }}" required>
+                                </div>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Content Type</label>
+                                        <select name="content_type" class="form-select" required>
+                                            <option value="reading" {{ $lesson->content_type === 'reading' ? 'selected' : '' }}>Reading / Article</option>
+                                            <option value="video" {{ $lesson->content_type === 'video' ? 'selected' : '' }}>Video Lecture</option>
+                                            <option value="quiz" {{ $lesson->content_type === 'quiz' ? 'selected' : '' }}>Interactive Quiz Assessment</option>
+                                            <option value="document" {{ $lesson->content_type === 'document' ? 'selected' : '' }}>Documentation / Resource</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Duration (Minutes)</label>
+                                        <input type="number" min="1" name="duration_minutes" class="form-control" value="{{ $lesson->duration_minutes }}" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Order Number</label>
+                                        <input type="number" min="1" name="order_number" class="form-control" value="{{ $lesson->order_number }}">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Video URL (optional)</label>
+                                    <input type="text" name="video_url" class="form-control" value="{{ $lesson->video_url }}" placeholder="https://www.youtube.com/embed/... or local video mp4 path">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Lesson Article / Content (HTML allowed)</label>
+                                    <textarea name="content" class="form-control font-monospace" rows="6">{{ $lesson->content }}</textarea>
+                                </div>
+
+                                <div class="form-check">
+                                    <input type="checkbox" name="is_preview" value="1" class="form-check-input" id="editPrev{{ $lesson->id }}" {{ $lesson->is_preview ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="editPrev{{ $lesson->id }}">Allow free preview without enrollment</label>
+                                </div>
+                            </div>
+                            <div class="modal-footer bg-light">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endforeach
     @empty
         <div class="card p-5 text-center border-0 shadow-sm bg-white">
             <i class="bi bi-folder-plus fs-1 text-muted mb-3 d-block"></i>

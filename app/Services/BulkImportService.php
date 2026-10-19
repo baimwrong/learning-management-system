@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -33,7 +34,7 @@ class BulkImportService
             'status' => 'processing',
         ]);
 
-        $fullPath = storage_path('app/' . $storedPath);
+        $fullPath = Storage::disk('local')->path($storedPath);
         $rows = $this->readCsv($fullPath);
 
         $totalRows = count($rows);

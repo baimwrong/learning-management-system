@@ -138,6 +138,7 @@
 </head>
 <body>
     <!-- Local Demo Role Switcher Bar -->
+    @if(app()->isLocal())
     <div class="quick-role-bar">
         <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
@@ -155,6 +156,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3">

@@ -95,6 +95,15 @@ class Course extends Model
      */
     public function getAverageRatingAttribute(): float
     {
+        if (isset($this->attributes['reviews_avg_rating'])) {
+            return round((float) $this->attributes['reviews_avg_rating'], 1);
+        }
+
+        if ($this->relationLoaded('reviews')) {
+            $approved = $this->reviews->where('is_approved', true);
+            return $approved->isNotEmpty() ? round((float) $approved->avg('rating'), 1) : 0.0;
+        }
+
         return round((float) ($this->reviews()->where('is_approved', true)->avg('rating') ?? 0), 1);
     }
 
@@ -103,6 +112,14 @@ class Course extends Model
      */
     public function getTotalLessonsCountAttribute(): int
     {
+        if (isset($this->attributes['lessons_count'])) {
+            return (int) $this->attributes['lessons_count'];
+        }
+
+        if ($this->relationLoaded('lessons')) {
+            return $this->lessons->count();
+        }
+
         return $this->lessons()->count();
     }
 
@@ -111,6 +128,14 @@ class Course extends Model
      */
     public function getTotalDurationMinutesAttribute(): int
     {
+        if (isset($this->attributes['lessons_sum_duration_minutes'])) {
+            return (int) $this->attributes['lessons_sum_duration_minutes'];
+        }
+
+        if ($this->relationLoaded('lessons')) {
+            return (int) $this->lessons->sum('duration_minutes');
+        }
+
         return (int) $this->lessons()->sum('duration_minutes');
     }
 

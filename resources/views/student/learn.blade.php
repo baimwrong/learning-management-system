@@ -102,8 +102,8 @@
             <div class="mb-5">
                 @if($currentLesson->content_type === 'video')
                     <div class="ratio ratio-16x9 mb-4 rounded-3 overflow-hidden bg-dark shadow-sm">
-                        @if($currentLesson->video_url)
-                            <iframe src="{{ $currentLesson->video_url }}" title="{{ $currentLesson->title }}" allowfullscreen></iframe>
+                        @if($currentLesson->safe_video_url)
+                            <iframe src="{{ $currentLesson->safe_video_url }}" title="{{ $currentLesson->title }}" allowfullscreen></iframe>
                         @else
                             <div class="d-flex align-items-center justify-content-center text-white p-5">
                                 <div class="text-center">
@@ -139,7 +139,7 @@
                 @if($currentLesson->content)
                     <div class="card p-4 border bg-white shadow-sm mb-4">
                         <div class="lesson-article text-dark" style="line-height: 1.8; font-size: 1.05rem;">
-                            {!! $currentLesson->content !!}
+                            {!! $currentLesson->sanitized_content !!}
                         </div>
                     </div>
                 @endif

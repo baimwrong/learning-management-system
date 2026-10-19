@@ -187,6 +187,28 @@ class InstructorController extends Controller
     }
 
     /**
+     * Update Module details.
+     */
+    public function updateModule(Request $request, CourseModule $module)
+    {
+        $this->authorizeCourse($module->course);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'order_number' => 'nullable|integer|min:1',
+        ]);
+
+        $module->update([
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'order_number' => $validated['order_number'] ?? $module->order_number,
+        ]);
+
+        return back()->with('success', "Module '{$module->title}' updated successfully.");
+    }
+
+    /**
      * Delete Module.
      */
     public function deleteModule(CourseModule $module)
@@ -240,6 +262,49 @@ class InstructorController extends Controller
         }
 
         return back()->with('success', "Lesson '{$lesson->title}' added.");
+    }
+
+    /**
+     * Update Lesson details.
+     */
+    public function updateLesson(Request $request, Lesson $lesson)
+    {
+        $this->authorizeCourse($lesson->module->course);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content_type' => 'required|in:reading,video,quiz,document',
+            'duration_minutes' => 'required|integer|min:1',
+            'content' => 'nullable|string',
+            'video_url' => 'nullable|string|max:500',
+            'is_preview' => 'nullable|boolean',
+            'order_number' => 'nullable|integer|min:1',
+        ]);
+
+        $lesson->update([
+            'title' => $validated['title'],
+            'content_type' => $validated['content_type'],
+            'duration_minutes' => $validated['duration_minutes'],
+            'content' => $validated['content'] ?? null,
+            'video_url' => $validated['video_url'] ?? null,
+            'is_preview' => $request->boolean('is_preview'),
+            'order_number' => $validated['order_number'] ?? $lesson->order_number,
+        ]);
+
+        if ($lesson->content_type === 'quiz' && !$lesson->quiz) {
+            Quiz::create([
+                'course_id' => $lesson->module->course_id,
+                'lesson_id' => $lesson->id,
+                'title' => $lesson->title,
+                'description' => 'Quiz for ' . $lesson->title,
+                'time_limit_minutes' => 20,
+                'passing_score_percentage' => 70,
+                'max_attempts' => 3,
+                'is_active' => true,
+            ]);
+        }
+
+        return back()->with('success', "Lesson '{$lesson->title}' updated successfully.");
     }
 
     /**
@@ -310,6 +375,52 @@ class InstructorController extends Controller
         ]);
 
         return back()->with('success', 'Question added to quiz.');
+    }
+
+    /**
+     * Update Question details.
+     */
+    public function updateQuestion(Request $request, QuizQuestion $question)
+    {
+        $this->authorizeCourse($question->quiz->course);
+
+        $validated = $request->validate([
+            'question_text' => 'required|string',
+            'question_type' => 'required|in:single_choice,multiple_choice,true_false,short_answer',
+            'points' => 'required|integer|min:1',
+            'options' => 'nullable|array',
+            'correct_answers' => 'required',
+            'explanation' => 'nullable|string',
+            'order_number' => 'nullable|integer|min:1',
+        ]);
+
+        $formattedOptions = [];
+        if (!empty($validated['options']) && is_array($validated['options'])) {
+            $letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            foreach ($validated['options'] as $i => $optText) {
+                if (trim($optText) !== '') {
+                    $key = $letters[$i] ?? (string) ($i + 1);
+                    $formattedOptions[] = [
+                        'key' => $key,
+                        'text' => trim($optText),
+                    ];
+                }
+            }
+        }
+
+        $correctAnswers = (array) $validated['correct_answers'];
+
+        $question->update([
+            'question_text' => $validated['question_text'],
+            'question_type' => $validated['question_type'],
+            'options' => $formattedOptions,
+            'correct_answers' => $correctAnswers,
+            'points' => $validated['points'],
+            'explanation' => $validated['explanation'] ?? null,
+            'order_number' => $validated['order_number'] ?? $question->order_number,
+        ]);
+
+        return back()->with('success', 'Question updated successfully.');
     }
 
     /**

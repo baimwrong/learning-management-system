@@ -30,13 +30,16 @@ Route::get('/certificates/{certificate}', [CertificateController::class, 'show']
 */
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
-Route::get('/auth/quick-login/{role}', [AuthController::class, 'quickLogin'])->name('auth.quick-login');
+
+if (app()->environment('local', 'testing')) {
+    Route::get('/auth/quick-login/{role}', [AuthController::class, 'quickLogin'])->name('auth.quick-login');
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -79,13 +82,16 @@ Route::middleware(['auth', 'role:instructor,admin'])->prefix('instructor')->name
     // Curriculum Builder (Modules & Lessons)
     Route::get('/courses/{course}/curriculum', [InstructorController::class, 'curriculum'])->name('courses.curriculum');
     Route::post('/courses/{course}/modules', [InstructorController::class, 'storeModule'])->name('modules.store');
+    Route::put('/modules/{module}', [InstructorController::class, 'updateModule'])->name('modules.update');
     Route::delete('/modules/{module}', [InstructorController::class, 'deleteModule'])->name('modules.destroy');
     Route::post('/modules/{module}/lessons', [InstructorController::class, 'storeLesson'])->name('lessons.store');
+    Route::put('/lessons/{lesson}', [InstructorController::class, 'updateLesson'])->name('lessons.update');
     Route::delete('/lessons/{lesson}', [InstructorController::class, 'deleteLesson'])->name('lessons.destroy');
     
     // Quiz & Question Bank Builder
     Route::get('/quizzes/{quiz}/builder', [InstructorController::class, 'quizBuilder'])->name('quizzes.builder');
     Route::post('/quizzes/{quiz}/questions', [InstructorController::class, 'storeQuestion'])->name('questions.store');
+    Route::put('/questions/{question}', [InstructorController::class, 'updateQuestion'])->name('questions.update');
     Route::delete('/questions/{question}', [InstructorController::class, 'deleteQuestion'])->name('questions.destroy');
     
     // Enrolled Students

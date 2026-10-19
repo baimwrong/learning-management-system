@@ -56,6 +56,7 @@
                     </div>
                 </form>
 
+                @if(app()->isLocal())
                 <!-- 1-Click Demo Login Shortcuts -->
                 <div class="mt-4 pt-3 border-top">
                     <div class="text-center small fw-bold text-uppercase text-secondary mb-2" style="font-size: 0.75rem;">
@@ -76,6 +77,7 @@
                         </a>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>

@@ -55,9 +55,10 @@ class AdminController extends Controller
 
         if ($request->filled('q')) {
             $keyword = '%' . $request->q . '%';
-            $query->where(function ($q) use ($keyword) {
-                $q->where('name', 'ilike', $keyword)
-                    ->orWhere('email', 'ilike', $keyword);
+            $likeOp = (DB::connection()->getDriverName() === 'pgsql') ? 'ilike' : 'like';
+            $query->where(function ($q) use ($keyword, $likeOp) {
+                $q->where('name', $likeOp, $keyword)
+                    ->orWhere('email', $likeOp, $keyword);
             });
         }
 
@@ -152,7 +153,8 @@ class AdminController extends Controller
 
         if ($request->filled('q')) {
             $keyword = '%' . $request->q . '%';
-            $query->where('title', 'ilike', $keyword);
+            $likeOp = (DB::connection()->getDriverName() === 'pgsql') ? 'ilike' : 'like';
+            $query->where('title', $likeOp, $keyword);
         }
 
         $courses = $query->latest()->paginate(15)->withQueryString();
