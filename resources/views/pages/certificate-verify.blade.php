@@ -33,7 +33,7 @@
 
             <!-- Verification Results -->
             @if($searchCode)
-                @if($certificate)
+                @if($certificate && $certificate->isValid())
                     <div class="card border-success shadow-sm p-4 p-md-5">
                         <div class="d-flex align-items-center gap-3 text-success mb-3">
                             <i class="bi bi-check-circle-fill fs-1"></i>
@@ -77,6 +77,12 @@
                                 <i class="bi bi-printer me-1"></i> View & Print Certificate
                             </a>
                         </div>
+                    </div>
+                @elseif($certificate && !$certificate->isValid())
+                    <div class="card border-warning shadow-sm p-4 text-center">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-1 mb-2"></i>
+                        <h4 class="text-dark fw-bold">Certificate Inactive or Pending Completion</h4>
+                        <p class="text-muted small mb-0">The credential record was found (Code: <strong>{{ $searchCode }}</strong>), but the course curriculum requirements are currently incomplete or pending.</p>
                     </div>
                 @else
                     <div class="card border-danger shadow-sm p-4 text-center">

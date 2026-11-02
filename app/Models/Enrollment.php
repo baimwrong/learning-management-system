@@ -69,21 +69,27 @@ class Enrollment extends Model
             }
 
             // Award certificate if not already issued
-            Certificate::firstOrCreate(
-                [
+            $cert = Certificate::where('user_id', $this->user_id)
+                ->where('course_id', $this->course_id)
+                ->first();
+
+            if (!$cert) {
+                do {
+                    $code = 'LMS-' . date('Y') . '-' . strtoupper(Str::random(8));
+                } while (Certificate::where('certificate_code', $code)->exists());
+
+                Certificate::create([
                     'user_id' => $this->user_id,
                     'course_id' => $this->course_id,
-                ],
-                [
-                    'certificate_code' => 'LMS-' . strtoupper(Str::random(10)),
+                    'certificate_code' => $code,
                     'issued_at' => now(),
                     'metadata' => [
                         'course_title' => $course->title,
                         'student_name' => $this->user->name,
                         'instructor_name' => $course->instructor?->name ?? 'Course Faculty',
                     ],
-                ]
-            );
+                ]);
+            }
         } else {
             $this->status = 'active';
             $this->completed_at = null;

@@ -46,6 +46,14 @@ class BulkImportController extends Controller
         $type = $request->input('import_type');
 
         try {
+            if (config('queue.default') !== 'sync') {
+                $bulkImport = $this->importService->createImportRecord($file, $type, auth()->user());
+                \App\Jobs\ProcessBulkImportJob::dispatch($bulkImport);
+
+                return redirect()->route('admin.bulk-import.show', $bulkImport)
+                    ->with('info', "Bulk import of {$type} queued for background processing! You can track its real-time progress here.");
+            }
+
             $bulkImport = $this->importService->processImport($file, $type, auth()->user());
 
             if ($bulkImport->status === 'completed') {
@@ -87,11 +95,15 @@ class BulkImportController extends Controller
     }
 
     /**
-     * Delete an import history record.
+     * Delete an import history record and remove associated stored file.
      */
     public function destroy(BulkImport $bulkImport)
     {
+        if ($bulkImport->filename && \Illuminate\Support\Facades\Storage::disk('local')->exists($bulkImport->filename)) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($bulkImport->filename);
+        }
+
         $bulkImport->delete();
-        return back()->with('success', 'Import log record deleted.');
+        return back()->with('success', 'Import log record and stored file deleted.');
     }
 }

@@ -18,6 +18,12 @@
                 @if(request('level'))
                     <input type="hidden" name="level" value="{{ request('level') }}">
                 @endif
+                @if(request('price_type'))
+                    <input type="hidden" name="price_type" value="{{ request('price_type') }}">
+                @endif
+                @if(request('sort'))
+                    <input type="hidden" name="sort" value="{{ request('sort') }}">
+                @endif
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
                     <input type="text" name="q" class="form-control border-start-0" placeholder="Search by title, keywords..." value="{{ request('q') }}">
@@ -32,11 +38,11 @@
 
     <!-- Filter Bar -->
     <div class="card border-0 shadow-sm p-3 mb-4 bg-white">
-        <div class="row g-2 align-items-center">
-            <!-- Categories -->
-            <div class="col-md-4">
-                <form action="{{ route('courses.index') }}" method="GET" id="filterForm">
-                    @if(request('q')) <input type="hidden" name="q" value="{{ request('q') }}"> @endif
+        <form action="{{ route('courses.index') }}" method="GET" id="catalogFilterForm">
+            @if(request('q')) <input type="hidden" name="q" value="{{ request('q') }}"> @endif
+            <div class="row g-2 align-items-center">
+                <!-- Categories -->
+                <div class="col-md-4">
                     <div class="input-group input-group-sm">
                         <label class="input-group-text bg-light text-muted small" for="catFilter">Category</label>
                         <select name="category" id="catFilter" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -48,14 +54,10 @@
                             @endforeach
                         </select>
                     </div>
-                </form>
-            </div>
+                </div>
 
-            <!-- Level -->
-            <div class="col-md-3">
-                <form action="{{ route('courses.index') }}" method="GET">
-                    @if(request('q')) <input type="hidden" name="q" value="{{ request('q') }}"> @endif
-                    @if(request('category')) <input type="hidden" name="category" value="{{ request('category') }}"> @endif
+                <!-- Level -->
+                <div class="col-md-3">
                     <div class="input-group input-group-sm">
                         <label class="input-group-text bg-light text-muted small" for="levelFilter">Level</label>
                         <select name="level" id="levelFilter" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -65,15 +67,10 @@
                             <option value="advanced" {{ request('level') == 'advanced' ? 'selected' : '' }}>Advanced</option>
                         </select>
                     </div>
-                </form>
-            </div>
+                </div>
 
-            <!-- Price Type -->
-            <div class="col-md-2">
-                <form action="{{ route('courses.index') }}" method="GET">
-                    @if(request('q')) <input type="hidden" name="q" value="{{ request('q') }}"> @endif
-                    @if(request('category')) <input type="hidden" name="category" value="{{ request('category') }}"> @endif
-                    @if(request('level')) <input type="hidden" name="level" value="{{ request('level') }}"> @endif
+                <!-- Price Type -->
+                <div class="col-md-2">
                     <div class="input-group input-group-sm">
                         <label class="input-group-text bg-light text-muted small" for="priceFilter">Price</label>
                         <select name="price_type" id="priceFilter" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -82,16 +79,10 @@
                             <option value="paid" {{ request('price_type') == 'paid' ? 'selected' : '' }}>Paid</option>
                         </select>
                     </div>
-                </form>
-            </div>
+                </div>
 
-            <!-- Sort By -->
-            <div class="col-md-3">
-                <form action="{{ route('courses.index') }}" method="GET">
-                    @if(request('q')) <input type="hidden" name="q" value="{{ request('q') }}"> @endif
-                    @if(request('category')) <input type="hidden" name="category" value="{{ request('category') }}"> @endif
-                    @if(request('level')) <input type="hidden" name="level" value="{{ request('level') }}"> @endif
-                    @if(request('price_type')) <input type="hidden" name="price_type" value="{{ request('price_type') }}"> @endif
+                <!-- Sort By -->
+                <div class="col-md-3">
                     <div class="input-group input-group-sm">
                         <label class="input-group-text bg-light text-muted small" for="sortFilter">Sort</label>
                         <select name="sort" id="sortFilter" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -101,9 +92,9 @@
                             <option value="title" {{ request('sort') == 'title' ? 'selected' : '' }}>Course Title (A-Z)</option>
                         </select>
                     </div>
-                </form>
+                </div>
             </div>
-        </div>
+        </form>
     </div>
 
     <!-- Courses Grid -->

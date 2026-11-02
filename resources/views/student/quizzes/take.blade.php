@@ -21,7 +21,7 @@
                         <div class="text-end">
                             <span class="text-muted small d-block">Time Remaining</span>
                             <div class="h4 fw-bold text-danger font-monospace mb-0" id="timerDisplay">
-                                {{ sprintf('%02d:00', $quiz->time_limit_minutes) }}
+                                {{ sprintf('%02d:%02d', floor($remainingSeconds / 60), $remainingSeconds % 60) }}
                             </div>
                         </div>
                     @endif
@@ -92,7 +92,7 @@
 @if($quiz->time_limit_minutes > 0)
 @push('scripts')
 <script>
-    let totalSeconds = {{ $quiz->time_limit_minutes * 60 }};
+    let totalSeconds = {{ $remainingSeconds }};
     const timerDisplay = document.getElementById('timerDisplay');
     const quizForm = document.getElementById('quizForm');
 

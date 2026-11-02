@@ -98,11 +98,30 @@ class ProgressAndCertificateTest extends TestCase
             'course_id' => $course->id,
         ]);
 
+        $cert = \App\Models\Certificate::where('user_id', $student->id)->where('course_id', $course->id)->first();
+        $this->assertNotNull($cert);
+        $this->assertTrue($cert->isValid());
+        $this->assertStringStartsWith('LMS-', $cert->certificate_code);
+
+        // Verification endpoint returns valid view
+        $verifyRes = $this->get(route('certificates.verify', ['code' => $cert->certificate_code]));
+        $verifyRes->assertStatus(200);
+        $verifyRes->assertSee('Valid & Authentic Certificate', false);
+
+        // Show endpoint binds via certificate_code
+        $showRes = $this->get(route('certificates.show', $cert));
+        $showRes->assertStatus(200);
+
         // Uncomplete lesson 2 -> 50%, status must revert to active
         $comp2->delete();
         $progress3 = $enrollment->recalculateProgress();
         $this->assertEquals(50.00, $progress3);
         $this->assertEquals('active', $enrollment->fresh()->status);
         $this->assertNull($enrollment->fresh()->completed_at);
+
+        // Certificate is now marked invalid because progress is no longer 100%
+        $this->assertFalse($cert->fresh()->isValid());
+        $verifyResPending = $this->get(route('certificates.verify', ['code' => $cert->certificate_code]));
+        $verifyResPending->assertSee('Certificate Inactive or Pending Completion');
     }
 }

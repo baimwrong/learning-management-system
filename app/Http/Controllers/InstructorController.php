@@ -10,6 +10,7 @@ use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\QuizQuestion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class InstructorController extends Controller
@@ -73,6 +74,7 @@ class InstructorController extends Controller
             'is_published' => 'nullable|boolean',
             'requirements' => 'nullable|string',
             'learning_outcomes' => 'nullable|string',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,webp,jpg|max:2048',
         ]);
 
         $baseSlug = Str::slug($validated['title']);
@@ -87,6 +89,11 @@ class InstructorController extends Controller
         $reqs = array_filter(array_map('trim', explode("\n", $validated['requirements'] ?? '')));
         $outcomes = array_filter(array_map('trim', explode("\n", $validated['learning_outcomes'] ?? '')));
 
+        $thumbnailPath = null;
+        if ($request->hasFile('thumbnail')) {
+            $thumbnailPath = $request->file('thumbnail')->store('thumbnails', 'public');
+        }
+
         $course = Course::create([
             'title' => $validated['title'],
             'slug' => $slug,
@@ -96,6 +103,7 @@ class InstructorController extends Controller
             'price' => $validated['price'],
             'summary' => $validated['summary'],
             'description' => $validated['description'],
+            'thumbnail' => $thumbnailPath,
             'requirements' => array_values($reqs),
             'learning_outcomes' => array_values($outcomes),
             'is_published' => $request->boolean('is_published'),
@@ -133,12 +141,13 @@ class InstructorController extends Controller
             'is_published' => 'nullable|boolean',
             'requirements' => 'nullable|string',
             'learning_outcomes' => 'nullable|string',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,webp,jpg|max:2048',
         ]);
 
         $reqs = array_filter(array_map('trim', explode("\n", $validated['requirements'] ?? '')));
         $outcomes = array_filter(array_map('trim', explode("\n", $validated['learning_outcomes'] ?? '')));
 
-        $course->update([
+        $data = [
             'title' => $validated['title'],
             'category_id' => $validated['category_id'],
             'level' => $validated['level'],
@@ -148,7 +157,16 @@ class InstructorController extends Controller
             'requirements' => array_values($reqs),
             'learning_outcomes' => array_values($outcomes),
             'is_published' => $request->boolean('is_published'),
-        ]);
+        ];
+
+        if ($request->hasFile('thumbnail')) {
+            if ($course->thumbnail && Storage::disk('public')->exists($course->thumbnail)) {
+                Storage::disk('public')->delete($course->thumbnail);
+            }
+            $data['thumbnail'] = $request->file('thumbnail')->store('thumbnails', 'public');
+        }
+
+        $course->update($data);
 
         return back()->with('success', 'Course updated successfully.');
     }
@@ -233,7 +251,13 @@ class InstructorController extends Controller
             'content' => 'nullable|string',
             'video_url' => 'nullable|string|max:500',
             'is_preview' => 'nullable|boolean',
+            'attachment' => 'nullable|file|mimes:pdf,zip,doc,docx,ppt,pptx,txt|max:10240',
         ]);
+
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('attachments', 'public');
+        }
 
         $lesson = Lesson::create([
             'module_id' => $module->id,
@@ -243,6 +267,7 @@ class InstructorController extends Controller
             'duration_minutes' => $validated['duration_minutes'],
             'content' => $validated['content'] ?? null,
             'video_url' => $validated['video_url'] ?? null,
+            'attachment_path' => $attachmentPath,
             'is_preview' => $request->boolean('is_preview'),
             'order_number' => $module->lessons()->count() + 1,
         ]);
@@ -279,9 +304,10 @@ class InstructorController extends Controller
             'video_url' => 'nullable|string|max:500',
             'is_preview' => 'nullable|boolean',
             'order_number' => 'nullable|integer|min:1',
+            'attachment' => 'nullable|file|mimes:pdf,zip,doc,docx,ppt,pptx,txt|max:10240',
         ]);
 
-        $lesson->update([
+        $updateData = [
             'title' => $validated['title'],
             'content_type' => $validated['content_type'],
             'duration_minutes' => $validated['duration_minutes'],
@@ -289,7 +315,21 @@ class InstructorController extends Controller
             'video_url' => $validated['video_url'] ?? null,
             'is_preview' => $request->boolean('is_preview'),
             'order_number' => $validated['order_number'] ?? $lesson->order_number,
-        ]);
+        ];
+
+        if ($request->hasFile('attachment')) {
+            if ($lesson->attachment_path && Storage::disk('public')->exists($lesson->attachment_path)) {
+                Storage::disk('public')->delete($lesson->attachment_path);
+            }
+            $updateData['attachment_path'] = $request->file('attachment')->store('attachments', 'public');
+        } elseif ($request->boolean('remove_attachment')) {
+            if ($lesson->attachment_path && Storage::disk('public')->exists($lesson->attachment_path)) {
+                Storage::disk('public')->delete($lesson->attachment_path);
+            }
+            $updateData['attachment_path'] = null;
+        }
+
+        $lesson->update($updateData);
 
         if ($lesson->content_type === 'quiz' && !$lesson->quiz) {
             Quiz::create([
@@ -313,6 +353,11 @@ class InstructorController extends Controller
     public function deleteLesson(Lesson $lesson)
     {
         $this->authorizeCourse($lesson->module->course);
+
+        if ($lesson->attachment_path && Storage::disk('public')->exists($lesson->attachment_path)) {
+            Storage::disk('public')->delete($lesson->attachment_path);
+        }
+
         $lesson->delete();
 
         return back()->with('success', 'Lesson removed.');
@@ -360,8 +405,8 @@ class InstructorController extends Controller
             }
         }
 
-        // Format correct answers as array
-        $correctAnswers = (array) $validated['correct_answers'];
+        // Format correct answers as normalized array
+        $correctAnswers = $this->formatCorrectAnswers($validated['correct_answers'], $formattedOptions);
 
         QuizQuestion::create([
             'quiz_id' => $quiz->id,
@@ -408,7 +453,7 @@ class InstructorController extends Controller
             }
         }
 
-        $correctAnswers = (array) $validated['correct_answers'];
+        $correctAnswers = $this->formatCorrectAnswers($validated['correct_answers'], $formattedOptions);
 
         $question->update([
             'question_text' => $validated['question_text'],
@@ -446,6 +491,57 @@ class InstructorController extends Controller
             ->paginate(15);
 
         return view('instructor.students.index', compact('enrollments'));
+    }
+
+    /**
+     * Format and normalize correct answers array from string or array inputs.
+     */
+    protected function formatCorrectAnswers(mixed $rawAnswers, array $formattedOptions = []): array
+    {
+        $candidates = [];
+
+        if (is_array($rawAnswers)) {
+            foreach ($rawAnswers as $ans) {
+                if (is_string($ans) && str_contains($ans, ',')) {
+                    foreach (explode(',', $ans) as $part) {
+                        $part = trim($part);
+                        if ($part !== '') {
+                            $candidates[] = $part;
+                        }
+                    }
+                } elseif (!is_null($ans) && trim((string)$ans) !== '') {
+                    $candidates[] = trim((string)$ans);
+                }
+            }
+        } elseif (is_string($rawAnswers)) {
+            foreach (explode(',', $rawAnswers) as $part) {
+                $part = trim($part);
+                if ($part !== '') {
+                    $candidates[] = $part;
+                }
+            }
+        } elseif (!is_null($rawAnswers)) {
+            $candidates[] = trim((string)$rawAnswers);
+        }
+
+        // Map text values (like "True" or "False") to option keys if applicable
+        $normalized = [];
+        foreach ($candidates as $cand) {
+            $matchedKey = null;
+            foreach ($formattedOptions as $opt) {
+                if (strcasecmp($opt['key'], $cand) === 0) {
+                    $matchedKey = $opt['key'];
+                    break;
+                }
+                if (strcasecmp($opt['text'], $cand) === 0) {
+                    $matchedKey = $opt['key'];
+                    break;
+                }
+            }
+            $normalized[] = $matchedKey ?: strtoupper($cand);
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     /**

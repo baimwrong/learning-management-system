@@ -53,6 +53,10 @@ class AdminController extends Controller
             $query->where('role', $request->role);
         }
 
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
         if ($request->filled('q')) {
             $keyword = '%' . $request->q . '%';
             $likeOp = (DB::connection()->getDriverName() === 'pgsql') ? 'ilike' : 'like';
@@ -130,6 +134,10 @@ class AdminController extends Controller
     {
         if ($user->id === auth()->id()) {
             return back()->with('error', 'You cannot delete your own admin account.');
+        }
+
+        if ($user->instructedCourses()->exists()) {
+            return back()->with('error', "Cannot delete instructor '{$user->name}' because they have active authored courses. Please reassign or delete their courses first to protect student enrollment records.");
         }
 
         $user->delete();

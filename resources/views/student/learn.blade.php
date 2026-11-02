@@ -85,16 +85,31 @@
                 </div>
 
                 <div>
-                    <form action="{{ route('student.lessons.complete', $currentLesson) }}" method="POST">
-                        @csrf
+                    @if($currentLesson->content_type === 'quiz')
                         @php
                             $isDone = in_array($currentLesson->id, $completedLessonIds);
                         @endphp
-                        <button type="submit" class="btn btn-{{ $isDone ? 'success' : 'outline-success' }} btn-sm fw-semibold">
-                            <i class="bi bi-{{ $isDone ? 'check-circle-fill' : 'circle' }} me-1"></i>
-                            {{ $isDone ? 'Completed' : 'Mark as Complete' }}
-                        </button>
-                    </form>
+                        @if($isDone)
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
+                                <i class="bi bi-check-circle-fill me-1"></i> Assessment Passed
+                            </span>
+                        @elseif($currentLesson->quiz)
+                            <a href="{{ route('student.quiz.take', $currentLesson->quiz) }}" class="btn btn-warning btn-sm fw-semibold">
+                                <i class="bi bi-lightning-charge-fill me-1"></i> Take Quiz to Complete
+                            </a>
+                        @endif
+                    @else
+                        <form action="{{ route('student.lessons.complete', $currentLesson) }}" method="POST">
+                            @csrf
+                            @php
+                                $isDone = in_array($currentLesson->id, $completedLessonIds);
+                            @endphp
+                            <button type="submit" class="btn btn-{{ $isDone ? 'success' : 'outline-success' }} btn-sm fw-semibold">
+                                <i class="bi bi-{{ $isDone ? 'check-circle-fill' : 'circle' }} me-1"></i>
+                                {{ $isDone ? 'Completed' : 'Mark as Complete' }}
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
 
@@ -141,6 +156,24 @@
                         <div class="lesson-article text-dark" style="line-height: 1.8; font-size: 1.05rem;">
                             {!! $currentLesson->sanitized_content !!}
                         </div>
+                    </div>
+                @endif
+
+                <!-- Supplementary Attachment / Downloadable Resource -->
+                @if($currentLesson->attachment_path)
+                    <div class="card p-3 border-0 bg-primary bg-opacity-10 rounded-3 mb-4 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-primary text-white rounded p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                <i class="bi bi-paperclip fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark">Supplementary Lesson Resource</div>
+                                <div class="text-muted small">{{ basename($currentLesson->attachment_path) }}</div>
+                            </div>
+                        </div>
+                        <a href="{{ asset('storage/' . $currentLesson->attachment_path) }}" download class="btn btn-primary btn-sm px-3 fw-semibold">
+                            <i class="bi bi-download me-1"></i> Download Attachment
+                        </a>
                     </div>
                 @endif
             </div>
@@ -259,7 +292,12 @@
                                 @endif
                                 <span>{{ $les->title }}</span>
                             </div>
-                            <small class="text-muted" style="font-size: 0.72rem;">{{ $les->duration_minutes }}m</small>
+                            <div class="d-flex align-items-center justify-content-between mt-1">
+                                <small class="text-muted" style="font-size: 0.72rem;">{{ $les->duration_minutes }}m</small>
+                                @if($les->attachment_path)
+                                    <small class="text-info" title="Attachment available"><i class="bi bi-paperclip"></i></small>
+                                @endif
+                            </div>
                         </div>
                     </a>
                 @endforeach

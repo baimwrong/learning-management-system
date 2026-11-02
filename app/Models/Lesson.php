@@ -81,12 +81,26 @@ class Lesson extends Model
     public function getSanitizedContentAttribute(): string
     {
         $content = $this->content ?? '';
-        // Remove script, style, applet, embed, object tags and their contents
-        $content = preg_replace('#<(script|style|applet|embed|object)[^>]*>.*?</\1>#si', '', $content);
-        // Remove inline event handlers (onload, onerror, onclick, etc.)
-        $content = preg_replace('#\s*on\w+\s*=\s*(".*?"|\'.*?\'|[^\s>]+)#si', '', $content);
-        // Disallow javascript: links
-        $content = preg_replace('#href\s*=\s*(["\'])\s*javascript:[^"\']*\1#si', 'href="#"', $content);
+        if (trim($content) === '') {
+            return '';
+        }
+
+        // 1. Remove dangerous blocks and their contents entirely
+        $dangerousBlocks = 'script|style|applet|embed|object|iframe|frame|frameset|meta|link|base|form|input|button|textarea|select|option|svg|math|template';
+        $content = preg_replace("#<($dangerousBlocks)[^>]*>.*?</\\1>#si", '', $content);
+        // Strip unclosed dangerous tags
+        $content = preg_replace("#</?($dangerousBlocks)[^>]*>#si", '', $content);
+
+        // 2. Strip all inline event handlers (on*) regardless of whitespace, slashes, or quoting
+        $content = preg_replace('#[/\\s]+on[a-z0-9_-]+\\s*=\\s*("[^"]*"|\'[^\']*\'|[^\\s>]+)#si', '', $content);
+        $content = preg_replace('#[/\\s]+on[a-z0-9_-]+(?=[\\s/>])#si', '', $content);
+
+        // 3. Disallow dangerous pseudo-protocols (javascript:, vbscript:, data:) in any attribute
+        $content = preg_replace('#(href|src|action|data)\\s*=\\s*(["\']?)\\s*(javascript|vbscript|data):[^"\'\\s>]*\\2#si', '$1="#"', $content);
+
+        // 4. Strip dangerous CSS expressions or url imports in style attributes
+        $content = preg_replace('#style\\s*=\\s*(["\']).*?(expression|behavior|javascript|url\\s*\\().*?\\1#si', '', $content);
+
         return $content;
     }
 

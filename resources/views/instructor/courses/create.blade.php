@@ -10,13 +10,20 @@
             <h4 class="fw-bold mb-1">Course Fundamentals</h4>
             <p class="text-muted small mb-4">Set up course details, classification, prerequisites, and learning outcomes.</p>
 
-            <form action="{{ route('instructor.courses.store') }}" method="POST">
+            <form action="{{ route('instructor.courses.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
                 <div class="mb-3">
                     <label for="title" class="form-label fw-semibold small">Course Title</label>
                     <input type="text" name="title" id="title" class="form-control @error('title') is-invalid @enderror" value="{{ old('title') }}" required placeholder="e.g. Distributed Database Engineering with PostgreSQL 18">
                     @error('title') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="thumbnail" class="form-label fw-semibold small">Course Cover Image / Thumbnail (optional)</label>
+                    <input type="file" name="thumbnail" id="thumbnail" class="form-control @error('thumbnail') is-invalid @enderror" accept="image/jpeg,image/png,image/webp,image/jpg">
+                    <span class="text-muted" style="font-size: 0.75rem;">Supported formats: JPG, PNG, WEBP. Max size: 2MB. If omitted, an enterprise vector pattern is generated automatically.</span>
+                    @error('thumbnail') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                 </div>
 
                 <div class="row g-3 mb-3">

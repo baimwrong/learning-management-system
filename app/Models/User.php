@@ -80,6 +80,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Send password reset notification to user.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+    }
+
+    /**
      * Check if user has any of the given roles.
      */
     public function hasRole(string|array $roles): bool

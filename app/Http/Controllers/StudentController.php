@@ -13,6 +13,7 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class StudentController extends Controller
 {
@@ -176,6 +177,11 @@ class StudentController extends Controller
             return back()->with('error', 'You must be enrolled in this course to track lesson completion.');
         }
 
+        // Quiz lessons must be completed by passing the assessment, not manual toggle
+        if ($lesson->content_type === 'quiz') {
+            return back()->with('error', 'Quiz assessments cannot be manually marked complete. You must take and pass the assessment quiz.');
+        }
+
         $completion = LessonCompletion::where('user_id', $user->id)
             ->where('lesson_id', $lesson->id)
             ->first();
@@ -232,14 +238,25 @@ class StudentController extends Controller
             return back()->with('error', 'You have reached the maximum allowed attempts for this quiz.');
         }
 
-        // Record start time in session
-        session(["quiz_start_{$quiz->id}_{$user->id}" => now()]);
+        // Record or retrieve start time in session and calculate remaining seconds
+        $sessionKey = "quiz_start_{$quiz->id}_{$user->id}";
+        $startedTimestamp = session($sessionKey);
+        if (!$startedTimestamp) {
+            $startedTimestamp = now()->timestamp;
+            session([$sessionKey => $startedTimestamp]);
+        }
+
+        $remainingSeconds = 0;
+        if ($quiz->time_limit_minutes > 0) {
+            $elapsed = now()->timestamp - $startedTimestamp;
+            $remainingSeconds = max(0, ($quiz->time_limit_minutes * 60) - $elapsed);
+        }
 
         if ($quiz->randomize_questions) {
             $quiz->setRelation('questions', $quiz->questions->shuffle());
         }
 
-        return view('student.quizzes.take', compact('quiz', 'attemptsCount'));
+        return view('student.quizzes.take', compact('quiz', 'attemptsCount', 'remainingSeconds'));
     }
 
     /**
@@ -259,82 +276,105 @@ class StudentController extends Controller
             abort(403, 'You must be enrolled in this course to submit assessments.');
         }
 
-        // Check attempt limit
-        $attemptsCount = QuizAttempt::where('user_id', $user->id)->where('quiz_id', $quiz->id)->count();
-        if ($quiz->max_attempts > 0 && $attemptsCount >= $quiz->max_attempts) {
-            return redirect()->route('student.learn', $quiz->course->slug)
-                ->with('error', 'You have reached the maximum allowed attempts for this quiz.');
-        }
+        return DB::transaction(function () use ($request, $quiz, $user) {
+            // Check attempt limit under lock
+            $attemptsCount = QuizAttempt::where('user_id', $user->id)
+                ->where('quiz_id', $quiz->id)
+                ->lockForUpdate()
+                ->count();
 
-        $answers = $request->input('answers', []);
-        $questions = $quiz->questions;
-        $totalPoints = 0;
-        $earnedPoints = 0;
-        $submissionDetails = [];
-
-        foreach ($questions as $q) {
-            $totalPoints += $q->points;
-            $submitted = $answers[$q->id] ?? null;
-            $isCorrect = false;
-
-            $correctAnswers = (array) $q->correct_answers;
-
-            if ($q->question_type === 'multiple_choice') {
-                $submittedArray = is_array($submitted) ? $submitted : [$submitted];
-                sort($submittedArray);
-                sort($correctAnswers);
-                $isCorrect = ($submittedArray == $correctAnswers);
-            } else {
-                $isCorrect = (strtolower(trim((string)$submitted)) === strtolower(trim((string)($correctAnswers[0] ?? ''))));
+            if ($quiz->max_attempts > 0 && $attemptsCount >= $quiz->max_attempts) {
+                return redirect()->route('student.learn', $quiz->course->slug)
+                    ->with('error', 'You have reached the maximum allowed attempts for this quiz.');
             }
 
-            if ($isCorrect) {
-                $earnedPoints += $q->points;
+            // Fetch started_at from session or fallback
+            $fallbackMinutes = min(15, $quiz->time_limit_minutes ?: 15);
+            $sessionKey = "quiz_start_{$quiz->id}_{$user->id}";
+            $startedTimestamp = $request->session()->pull($sessionKey) ?? session()->pull($sessionKey);
+            $startedAt = $startedTimestamp ? \Carbon\Carbon::createFromTimestamp($startedTimestamp) : now()->subMinutes($fallbackMinutes);
+
+            // Server-side time limit check (with 60-second grace window for network lag)
+            if ($quiz->time_limit_minutes > 0) {
+                $allowedSeconds = ($quiz->time_limit_minutes * 60) + 60;
+                $elapsedSeconds = now()->timestamp - $startedAt->timestamp;
+                if ($elapsedSeconds > $allowedSeconds) {
+                    return redirect()->route('student.learn', $quiz->course->slug)
+                        ->with('error', "Assessment time limit exceeded ({$quiz->time_limit_minutes} minutes). Submission rejected.");
+                }
             }
 
-            $submissionDetails[$q->id] = [
-                'submitted' => $submitted,
-                'correct' => $correctAnswers,
-                'is_correct' => $isCorrect,
-                'points_earned' => $isCorrect ? $q->points : 0,
-            ];
-        }
+            $answers = $request->input('answers', []);
+            $questions = $quiz->questions;
+            $totalPoints = 0;
+            $earnedPoints = 0;
+            $submissionDetails = [];
 
-        $scorePercentage = $totalPoints > 0 ? round(($earnedPoints / $totalPoints) * 100, 2) : 0;
-        $isPassed = ($scorePercentage >= $quiz->passing_score_percentage);
+            foreach ($questions as $q) {
+                $totalPoints += $q->points;
+                $submitted = $answers[$q->id] ?? null;
+                $isCorrect = false;
 
-        // Fetch started_at from session or fallback
-        $fallbackMinutes = min(15, $quiz->time_limit_minutes ?: 15);
-        $startedAt = session()->pull("quiz_start_{$quiz->id}_{$user->id}", now()->subMinutes($fallbackMinutes));
+                $correctAnswers = (array) $q->correct_answers;
 
-        $attempt = QuizAttempt::create([
-            'quiz_id' => $quiz->id,
-            'user_id' => $user->id,
-            'score_percentage' => $scorePercentage,
-            'earned_points' => $earnedPoints,
-            'total_points' => $totalPoints,
-            'is_passed' => $isPassed,
-            'answers_submitted' => $submissionDetails,
-            'started_at' => $startedAt,
-            'completed_at' => now(),
-        ]);
+                if ($q->question_type === 'multiple_choice') {
+                    $submittedArray = is_array($submitted) ? $submitted : [$submitted];
+                    $submittedFiltered = array_values(array_filter($submittedArray, fn($v) => !is_null($v) && trim((string)$v) !== ''));
+                    $submittedNorm = array_map(fn($v) => strtolower(trim((string)$v)), $submittedFiltered);
+                    $correctNorm = array_map(fn($v) => strtolower(trim((string)$v)), $correctAnswers);
+                    sort($submittedNorm);
+                    sort($correctNorm);
+                    $isCorrect = (!empty($submittedNorm) && $submittedNorm == $correctNorm);
+                } else {
+                    $submittedStr = strtolower(trim((string)$submitted));
+                    $correctStr = strtolower(trim((string)($correctAnswers[0] ?? '')));
+                    $isCorrect = ($submittedStr !== '' && $submittedStr === $correctStr);
+                }
 
-        // If passed and linked to lesson, mark lesson completed
-        if ($isPassed && $quiz->lesson_id) {
-            LessonCompletion::firstOrCreate([
+                if ($isCorrect) {
+                    $earnedPoints += $q->points;
+                }
+
+                $submissionDetails[$q->id] = [
+                    'submitted' => $submitted,
+                    'correct' => $correctAnswers,
+                    'is_correct' => $isCorrect,
+                    'points_earned' => $isCorrect ? $q->points : 0,
+                ];
+            }
+
+            $scorePercentage = $totalPoints > 0 ? round(($earnedPoints / $totalPoints) * 100, 2) : 0;
+            $isPassed = ($scorePercentage >= $quiz->passing_score_percentage);
+
+            $attempt = QuizAttempt::create([
+                'quiz_id' => $quiz->id,
                 'user_id' => $user->id,
-                'lesson_id' => $quiz->lesson_id,
-                'course_id' => $quiz->course_id,
+                'score_percentage' => $scorePercentage,
+                'earned_points' => $earnedPoints,
+                'total_points' => $totalPoints,
+                'is_passed' => $isPassed,
+                'answers_submitted' => $submissionDetails,
+                'started_at' => $startedAt,
+                'completed_at' => now(),
             ]);
 
-            $enrollment = Enrollment::where('user_id', $user->id)->where('course_id', $quiz->course_id)->first();
-            if ($enrollment) {
-                $enrollment->recalculateProgress();
-            }
-        }
+            // If passed and linked to lesson, mark lesson completed
+            if ($isPassed && $quiz->lesson_id) {
+                LessonCompletion::firstOrCreate([
+                    'user_id' => $user->id,
+                    'lesson_id' => $quiz->lesson_id,
+                    'course_id' => $quiz->course_id,
+                ]);
 
-        return redirect()->route('student.quiz.result', $attempt)
-            ->with($isPassed ? 'success' : 'warning', $isPassed ? 'Congratulations! You passed the assessment!' : 'Assessment submitted. You did not meet the passing score.');
+                $enrollment = Enrollment::where('user_id', $user->id)->where('course_id', $quiz->course_id)->first();
+                if ($enrollment) {
+                    $enrollment->recalculateProgress();
+                }
+            }
+
+            return redirect()->route('student.quiz.result', $attempt)
+                ->with($isPassed ? 'success' : 'warning', $isPassed ? 'Congratulations! You passed the assessment!' : 'Assessment submitted. You did not meet the passing score.');
+        });
     }
 
     /**
@@ -367,6 +407,15 @@ class StudentController extends Controller
 
         if (!$isInstructor && !$isEnrolled) {
             return back()->with('error', 'You must be enrolled in this course to join discussions.');
+        }
+
+        if (!empty($validated['parent_id'])) {
+            $parent = Discussion::where('id', $validated['parent_id'])
+                ->where('lesson_id', $lesson->id)
+                ->first();
+            if (!$parent) {
+                return back()->with('error', 'The referenced discussion thread does not belong to this lesson.');
+            }
         }
 
         Discussion::create([

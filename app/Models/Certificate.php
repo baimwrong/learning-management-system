@@ -37,8 +37,25 @@ class Certificate extends Model
         return $this->belongsTo(Course::class);
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'certificate_code';
+    }
+
     public function getVerificationUrlAttribute(): string
     {
         return route('certificates.verify', $this->certificate_code);
+    }
+
+    /**
+     * Check if certificate is currently valid (student has 100% completed enrollment).
+     */
+    public function isValid(): bool
+    {
+        $enrollment = Enrollment::where('user_id', $this->user_id)
+            ->where('course_id', $this->course_id)
+            ->first();
+
+        return $enrollment && $enrollment->status === 'completed' && (float)$enrollment->progress_percentage >= 100.00;
     }
 }

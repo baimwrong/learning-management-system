@@ -19,22 +19,43 @@ use Illuminate\Support\Str;
 class BulkImportService
 {
     /**
-     * Process an uploaded CSV file based on import type.
+     * Create an initial BulkImport record and store the uploaded CSV file.
      */
-    public function processImport(UploadedFile $file, string $type, User $admin): BulkImport
+    public function createImportRecord(UploadedFile $file, string $type, User $admin): BulkImport
     {
         $originalFilename = $file->getClientOriginalName();
-        $storedPath = $file->storeAs('imports', uniqid('import_') . '_' . $originalFilename);
+        $storedPath = $file->storeAs('imports', uniqid('import_') . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $originalFilename));
 
-        $bulkImport = BulkImport::create([
+        return BulkImport::create([
             'user_id' => $admin->id,
             'import_type' => $type,
             'filename' => $storedPath,
             'original_filename' => $originalFilename,
-            'status' => 'processing',
+            'status' => 'pending',
         ]);
+    }
 
-        $fullPath = Storage::disk('local')->path($storedPath);
+    /**
+     * Process an uploaded CSV file based on import type.
+     */
+    public function processImport(UploadedFile $file, string $type, User $admin): BulkImport
+    {
+        $bulkImport = $this->createImportRecord($file, $type, $admin);
+        return $this->executeProcessing($bulkImport);
+    }
+
+    /**
+     * Execute processing on a stored BulkImport record.
+     */
+    public function executeProcessing(BulkImport $bulkImport): BulkImport
+    {
+        $bulkImport->status = 'processing';
+        $bulkImport->save();
+
+        $admin = $bulkImport->user ?? User::where('role', 'admin')->first();
+        $type = $bulkImport->import_type;
+
+        $fullPath = Storage::disk('local')->path($bulkImport->filename);
         $rows = $this->readCsv($fullPath);
 
         $totalRows = count($rows);

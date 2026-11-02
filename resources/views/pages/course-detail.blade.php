@@ -142,6 +142,9 @@
                                                             <i class="bi bi-file-text-fill text-secondary"></i>
                                                         @endif
                                                         <span class="small fw-semibold">{{ $lesson->title }}</span>
+                                                        @if($lesson->attachment_path)
+                                                            <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.65rem;"><i class="bi bi-paperclip"></i> Attachment</span>
+                                                        @endif
                                                         @if($lesson->is_preview)
                                                             <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.65rem;">Preview</span>
                                                         @endif

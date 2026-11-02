@@ -4,8 +4,10 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BulkImportController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstructorController;
+use App\Http\Controllers\ResetPasswordController;
 use App\Http\Controllers\StudentController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,12 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+
+    // Password Reset
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email')->middleware('throttle:6,1');
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+    Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('password.update')->middleware('throttle:10,1');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
@@ -55,12 +63,12 @@ Route::middleware(['auth', 'role:student,admin,instructor'])->prefix('student')-
     
     // Quizzes & Assessments
     Route::get('/quizzes/{quiz}/take', [StudentController::class, 'takeQuiz'])->name('quiz.take');
-    Route::post('/quizzes/{quiz}/submit', [StudentController::class, 'submitQuiz'])->name('quiz.submit');
+    Route::post('/quizzes/{quiz}/submit', [StudentController::class, 'submitQuiz'])->name('quiz.submit')->middleware('throttle:60,1');
     Route::get('/quiz-attempts/{attempt}', [StudentController::class, 'quizResult'])->name('quiz.result');
     
     // Lesson Discussions & Course Reviews
-    Route::post('/lessons/{lesson}/discussions', [StudentController::class, 'postDiscussion'])->name('discussions.store');
-    Route::post('/courses/{course}/review', [StudentController::class, 'submitReview'])->name('reviews.store');
+    Route::post('/lessons/{lesson}/discussions', [StudentController::class, 'postDiscussion'])->name('discussions.store')->middleware('throttle:30,1');
+    Route::post('/courses/{course}/review', [StudentController::class, 'submitReview'])->name('reviews.store')->middleware('throttle:20,1');
     
     // Certificates
     Route::get('/certificates', [StudentController::class, 'certificates'])->name('certificates');
@@ -133,7 +141,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     
     // Bulk Import Data Center
     Route::get('/bulk-import', [BulkImportController::class, 'index'])->name('bulk-import.index');
-    Route::post('/bulk-import/upload', [BulkImportController::class, 'upload'])->name('bulk-import.upload');
+    Route::post('/bulk-import/upload', [BulkImportController::class, 'upload'])->name('bulk-import.upload')->middleware('throttle:10,1');
     Route::get('/bulk-import/{bulkImport}', [BulkImportController::class, 'show'])->name('bulk-import.show');
     Route::get('/bulk-import/template/{type}', [BulkImportController::class, 'downloadTemplate'])->name('bulk-import.template');
     Route::delete('/bulk-import/{bulkImport}', [BulkImportController::class, 'destroy'])->name('bulk-import.destroy');

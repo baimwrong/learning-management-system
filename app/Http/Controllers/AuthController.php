@@ -72,14 +72,21 @@ class AuthController extends Controller
             'role' => 'nullable|in:student,instructor',
         ]);
 
+        $requestedRole = $validated['role'] ?? 'student';
+        $status = ($requestedRole === 'instructor') ? 'pending' : 'active';
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => strtolower($validated['email']),
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'student',
-            'status' => 'active',
+            'role' => $requestedRole,
+            'status' => $status,
             'email_verified_at' => now(),
         ]);
+
+        if ($status === 'pending') {
+            return redirect()->route('login')->with('info', "Thank you for registering as an Instructor! Your account has been submitted and is pending administrator approval before you can access the Instructor Studio.");
+        }
 
         Auth::login($user);
         $request->session()->regenerate();

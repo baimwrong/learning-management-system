@@ -88,8 +88,8 @@
 
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Correct Answer Key</label>
-                    <input type="text" name="correct_answers" class="form-control form-control-sm" required placeholder="e.g. A (or A,C for multiple select, or True/False)">
-                    <small class="text-muted" style="font-size: 0.72rem;">Enter key letter (e.g. A, B) matching the correct option.</small>
+                    <input type="text" name="correct_answers" class="form-control form-control-sm" required placeholder="e.g. A or A,C (for multiple select)">
+                    <small class="text-muted" style="font-size: 0.72rem;">Enter option letter(s) (e.g. A, B or A,C) matching the correct option.</small>
                 </div>
 
                 <div class="mb-3">

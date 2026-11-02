@@ -17,13 +17,25 @@
                 </a>
             </div>
 
-            <form action="{{ route('instructor.courses.update', $course) }}" method="POST">
+            <form action="{{ route('instructor.courses.update', $course) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
 
                 <div class="mb-3">
                     <label for="title" class="form-label fw-semibold small">Course Title</label>
                     <input type="text" name="title" id="title" class="form-control" value="{{ old('title', $course->title) }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="thumbnail" class="form-label fw-semibold small">Course Cover Image / Thumbnail</label>
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <img src="{{ $course->thumbnail_url }}" alt="Thumbnail Preview" class="rounded border shadow-sm" style="width: 140px; height: 80px; object-fit: cover;">
+                        <div>
+                            <input type="file" name="thumbnail" id="thumbnail" class="form-control @error('thumbnail') is-invalid @enderror" accept="image/jpeg,image/png,image/webp,image/jpg">
+                            <span class="text-muted" style="font-size: 0.75rem;">Upload new image (JPG, PNG, WEBP, max 2MB) to replace the current thumbnail.</span>
+                            @error('thumbnail') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row g-3 mb-3">

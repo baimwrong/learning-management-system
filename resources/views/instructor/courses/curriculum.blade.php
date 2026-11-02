@@ -70,6 +70,12 @@
 
                                     <span class="fw-semibold text-dark">{{ $lesson->title }}</span>
 
+                                    @if($lesson->attachment_path)
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle ms-2" title="Supplementary Attachment Included" style="font-size: 0.65rem;">
+                                            <i class="bi bi-paperclip"></i> Attachment
+                                        </span>
+                                    @endif
+
                                     @if($lesson->is_preview)
                                         <span class="badge bg-success-subtle text-success border border-success-subtle ms-2" style="font-size: 0.65rem;">Free Preview</span>
                                     @endif
@@ -111,7 +117,7 @@
         <div class="modal fade" id="addLessonModal{{ $module->id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content border-0 shadow">
-                    <form action="{{ route('instructor.lessons.store', $module) }}" method="POST">
+                    <form action="{{ route('instructor.lessons.store', $module) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="modal-header">
                             <h5 class="modal-title fw-bold">Add Lesson to: {{ $module->title }}</h5>
@@ -142,6 +148,12 @@
                             <div class="mb-3">
                                 <label class="form-label small fw-semibold">Video URL (optional)</label>
                                 <input type="text" name="video_url" class="form-control" placeholder="https://www.youtube.com/embed/... or local video mp4 path">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Supplementary Resource Attachment (optional)</label>
+                                <input type="file" name="attachment" class="form-control">
+                                <span class="text-muted" style="font-size: 0.72rem;">Accepts PDF, ZIP, DOCX, PPTX, TXT up to 10MB</span>
                             </div>
 
                             <div class="mb-3">
@@ -202,7 +214,7 @@
             <div class="modal fade" id="editLessonModal{{ $lesson->id }}" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content border-0 shadow">
-                        <form action="{{ route('instructor.lessons.update', $lesson) }}" method="POST">
+                        <form action="{{ route('instructor.lessons.update', $lesson) }}" method="POST" enctype="multipart/form-data">
                             @csrf
                             @method('PUT')
                             <div class="modal-header">
@@ -238,6 +250,24 @@
                                 <div class="mb-3">
                                     <label class="form-label small fw-semibold">Video URL (optional)</label>
                                     <input type="text" name="video_url" class="form-control" value="{{ $lesson->video_url }}" placeholder="https://www.youtube.com/embed/... or local video mp4 path">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Supplementary Resource Attachment (optional)</label>
+                                    @if($lesson->attachment_path)
+                                        <div class="p-2 mb-2 bg-light border rounded d-flex align-items-center justify-content-between">
+                                            <span class="small text-truncate" style="max-width: 320px;">
+                                                <i class="bi bi-paperclip text-success me-1"></i>
+                                                <a href="{{ asset('storage/' . $lesson->attachment_path) }}" target="_blank" class="fw-semibold">{{ basename($lesson->attachment_path) }}</a>
+                                            </span>
+                                            <div class="form-check form-check-inline m-0">
+                                                <input class="form-check-input" type="checkbox" name="remove_attachment" value="1" id="rmAtt{{ $lesson->id }}">
+                                                <label class="form-check-label small text-danger" for="rmAtt{{ $lesson->id }}">Remove</label>
+                                            </div>
+                                        </div>
+                                    @endif
+                                    <input type="file" name="attachment" class="form-control">
+                                    <span class="text-muted" style="font-size: 0.72rem;">Upload a new file (PDF, ZIP, DOCX, PPTX, TXT up to 10MB) to replace or add attachment</span>
                                 </div>
 
                                 <div class="mb-3">
